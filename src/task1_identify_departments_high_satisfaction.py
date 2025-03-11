@@ -44,8 +44,25 @@ def identify_departments_high_satisfaction(df):
     # 2. Calculate the percentage of such employees within each department.
     # 3. Identify departments where this percentage exceeds 50%.
     # 4. Return the result DataFrame.
-
-    pass  # Remove this line after implementing the function
+    filtered_df = df.filter((col('SatisfactionRating') > 4) & (col('EngagementLevel') == 'High'))
+    
+    # Step 2: Calculate the count of employees in each department
+    total_count_df = df.groupBy('Department').agg(count('*').alias('TotalEmployees'))
+    
+    # Step 3: Calculate the count of employees meeting the condition in each department
+    high_satisfaction_df = filtered_df.groupBy('Department').agg(count('*').alias('HighSatisfactionEmployees'))
+    
+    # Join the dataframes to calculate the percentage
+    result_df = total_count_df.join(high_satisfaction_df, on='Department', how='left')
+    
+    # Percentage of employees with high satisfaction in each department
+    result_df = result_df.withColumn('Percentage', 
+                                     (col('HighSatisfactionEmployees') / col('TotalEmployees')) * 100)
+    
+    # Departments where the percentage is greater than 50%
+    result_df = result_df.filter(col('Percentage') > 50).select('Department', spark_round('Percentage', 2).alias('Percentage'))
+    
+    return result_df
 
 def write_output(result_df, output_path):
     """
@@ -68,8 +85,8 @@ def main():
     spark = initialize_spark()
     
     # Define file paths
-    input_file = "/workspaces/Employee_Engagement_Analysis_Spark/input/employee_data.csv"
-    output_file = "/workspaces/Employee_Engagement_Analysis_Spark/outputs/task1/departments_high_satisfaction.csv"
+    input_file = "/workspaces/spark-structured-api-employee-engagement-analysis-Shreyash991/input/employee_data.csv"
+    output_file = "/workspaces/spark-structured-api-employee-engagement-analysis-Shreyash991/outputs/task1/departments_high_satisfaction.csv"
     
     # Load data
     df = load_data(spark, input_file)
